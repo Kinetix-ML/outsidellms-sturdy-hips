@@ -46,7 +46,7 @@
 </div>
 
 <div class="player pt-5">
-	<img src="static/iphone-t.png" alt="iPhone" class="iphone" />
+	<img src="/iphone-t.png" alt="iPhone" class="iphone" />
 	<video src={videoUrl} controls autoplay class="video" />
 </div>
 
