@@ -71,7 +71,7 @@
 		await loadTrainerData();
 		await startWebcam();
 	});
-	$: trainerSource && loadVideo('/demo.mp4');
+	$: trainerSource && loadVideo('/demo.mov');
 	$: startCountdown(countdown);
 	$: startGame(playing);
 	const startGame = async (p: boolean) => {
@@ -89,6 +89,7 @@
 			scores = [];
 			multiplier = 1;
 			goodFrameCount = 0;
+			score = 0;
 			let interval = setInterval(async function () {
 				time--;
 				if (time == 0) {
@@ -130,7 +131,7 @@
 						.findIndex((t) => t < time - startTime) -
 					1;
 				console.log(hintIdx);
-				let outputs = await pipe.execute([videoSource, canvas, frame.data]);
+				let outputs = await pipe.execute([videoSource, frame.data]);
 				console.log('similarity: ' + JSON.stringify(outputs[0].value));
 				if (outputs[0].value != DataType.NoDetections) {
 					drawKeyPoints(outputs[1].value, videoSource, canvas, outputs[0].value);
