@@ -18,6 +18,11 @@
 		currBlock = (currBlock + 1) % blocks.length;
 		videoUrl = blocks[currBlock].video;
 	}
+
+	function goToDance() {
+		// go to /cuffit
+		window.location.href = '/cuffit';
+	}
 </script>
 
 <div class="blocks pt-5 flex justify-center">
@@ -35,15 +40,20 @@
 </div>
 
 <div class="player">
-	<img src="/path/to/iphone.png" alt="iPhone" class="iphone" />
+	<img src="src/lib/assets/iphone.png" alt="iPhone" class="iphone" />
 	{#if videoUrl !== ''}
 		<video src={videoUrl} controls autoplay class="video" />
 	{/if}
 </div>
 
-<button on:click={nextBlock} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md"
-	>Next</button
->
+<div class="flex flex-row justify-between items-center text-black">
+	<button on:click={nextBlock} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md">
+		Next
+	</button>
+	<button on:click={goToDance} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md">
+		Play
+	</button>
+</div>
 
 <style>
 	.blocks {
