@@ -2,13 +2,13 @@
 	let blocks = [
 		{ title: 'HEART AWAY', artist: 'Artist 1', video: 'src/lib/assets/heartaway.MP4' },
 		{ title: 'PRETTY BOY', artist: 'Artist 2', video: 'src/lib/assets/prettyboy.MP4' },
-		{ title: 'DELI', artist: 'Artist 2', video: 'src/lib/assets/prettyboy.MP4' },
-		{ title: 'CUFF IT', artist: 'Artist 3', video: 'src/lib/assets/prettyboy.MP4' },
-		{ title: 'PUSHIN P', artist: 'Artist 4', video: 'src/lib/assets/prettyboy.MP4' },
-		{ title: 'JERK', artist: 'Artist 5', video: 'src/lib/assets/prettyboy.MP4' }
+		{ title: 'JERSEY LOVE', artist: 'Artist 2', video: 'src/lib/assets/jerseylove.MP4' },
+		{ title: 'CUFF IT', artist: 'Artist 3', video: 'src/lib/assets/cuffit1.MP4' }
+		// { title: 'PUSHIN P', artist: 'Artist 4', video: 'src/lib/assets/prettyboy.MP4' },
+		// { title: 'JERK', artist: 'Artist 5', video: 'src/lib/assets/prettyboy.MP4' }
 	];
 	let currBlock = 0;
-	let videoUrl = '';
+	let videoUrl = blocks[currBlock].video;
 
 	function selectBlock(index) {
 		currBlock = index;
@@ -47,9 +47,7 @@
 
 <div class="player">
 	<img src="src/lib/assets/iphone.png" alt="iPhone" class="iphone" />
-	{#if videoUrl !== ''}
-		<video src={videoUrl} controls autoplay class="video" />
-	{/if}
+	<video src={videoUrl} controls autoplay class="video" />
 </div>
 
 <div class="flex flex-row justify-between items-center text-black">
