@@ -5,3 +5,7 @@
 html {
 	@apply text-white;
 }
+
+body {
+	background-color: black;
+}
