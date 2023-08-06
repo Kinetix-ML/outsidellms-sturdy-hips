@@ -38,6 +38,25 @@
 	];
 	let hintTimes = [0, 5000, 9500, 11500, 12500, 13500];
 	let videoLoaded = false;
+	let kps = [
+		'nose',
+		'left_eye',
+		'right_eye',
+		'left_ear',
+		'right_ear',
+		'left_shoulder',
+		'right_shoulder',
+		'left_elbow',
+		'right_elbow',
+		'left_wrist',
+		'right_wrist',
+		'left_hip',
+		'right_hip',
+		'left_knee',
+		'right_knee',
+		'left_ankle',
+		'right_ankle'
+	];
 
 	// $: files && files.length > 0 && loadVideo(files[0]);
 	$: hRatio = innerHeight > 0 ? Math.round((innerHeight * 9) / 16) : 0;
@@ -115,6 +134,7 @@
 				console.log('similarity: ' + JSON.stringify(outputs[0].value));
 				if (outputs[0].value != DataType.NoDetections) {
 					drawKeyPoints(outputs[1].value, videoSource, canvas, outputs[0].value);
+					console.log(outputs[1].value.keypoints.map((kp) => kp.name));
 					scores.push(outputs[0].value);
 					scores = scores;
 				}
@@ -150,8 +170,14 @@
 			}
 		}
 	};
+	const matchKps = (frame: KPFrame) => {
+		let newKeypoints = kps.map((kp, i) => frame.keypoints.find((nkp) => nkp.name === kp));
+		// @ts-ignore
+		frame.keypoints = newKeypoints;
+	};
 	const avgScores = (s: number[]) => s.reduce((prev, cur) => prev + cur) / s.length;
 	const drawKeyPoints = (frame: KPFrame, image: CVImage, canvas: Canvas, scores: number[]) => {
+		matchKps(frame);
 		let w =
 			'videoWidth' in image
 				? (image as HTMLVideoElement).videoWidth
@@ -168,30 +194,25 @@
 			y: kp.y * scale - offsetY
 		}));
 		var ctx = canvas.getContext('2d');
+		let sc = scores.filter((kp, i) => i >= 5);
+		frame.keypoints
+			.filter((kp, i) => i >= 5)
+			.forEach((kp, i) => {
+				ctx?.beginPath();
+				ctx?.moveTo(kp.x, kp.y);
+				if (sc[i] > 0.6) {
+					ctx!.fillStyle = sc[i] > 0.8 ? 'white' : sc[i] > 0.6 ? 'yellow' : 'red';
+					ctx?.arc(kp.x, kp.y, canvas.width * (sc[i] < 0.8 ? 0.007 : 0.005), 0, 2 * Math.PI, false);
+				} else {
+					ctx!.font = '30px Arial bold';
+					ctx!.textBaseline = 'middle';
+					ctx!.fillText('❌', kp.x, kp.y);
+					ctx!.textAlign = 'center';
+				}
 
-		frame.keypoints.forEach((kp, i) => {
-			ctx?.beginPath();
-			ctx?.moveTo(kp.x, kp.y);
-			if (scores[i] > 0.6) {
-				ctx!.fillStyle = scores[i] > 0.8 ? 'white' : scores[i] > 0.6 ? 'yellow' : 'red';
-				ctx?.arc(
-					kp.x,
-					kp.y,
-					canvas.width * (scores[i] < 0.8 ? 0.007 : 0.005),
-					0,
-					2 * Math.PI,
-					false
-				);
-			} else {
-				ctx!.font = '30px Arial bold';
-				ctx!.textBaseline = 'middle';
-				ctx!.fillText('❌', kp.x, kp.y);
-				ctx!.textAlign = 'center';
-			}
-
-			ctx?.fill();
-			ctx?.closePath();
-		});
+				ctx?.fill();
+				ctx?.closePath();
+			});
 	};
 </script>
 
@@ -234,7 +255,10 @@
 							<p class="text-2xl font-bold">Welcome to Sturdy Hips</p>
 							<p>Let's put your dancing skills to the test. Press start to begin the song!</p>
 							{#if scores.length > 0}
-								<p class="text-xl font-bold">{Math.round(score)}</p>
+								<div class="flex flex-row items-baseline gap-2">
+									<p>You scored</p>
+									<p class="text-xl font-bold">{Math.round(score)}</p>
+								</div>
 							{/if}
 							<button
 								disabled={!videoLoaded}
