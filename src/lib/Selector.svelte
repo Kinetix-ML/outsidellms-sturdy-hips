@@ -45,24 +45,28 @@
 	{/each}
 </div>
 
-<div class="player">
-	<img src="src/lib/assets/iphone.png" alt="iPhone" class="iphone" />
+<div class="player pt-5">
+	<img src="src/lib/assets/iphone-t.png" alt="iPhone" class="iphone" />
 	<video src={videoUrl} controls autoplay class="video" />
 </div>
 
-<div class="flex flex-row justify-between items-center text-black">
-	<button on:click={backBlock} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md">
+<div class="flex flex-row justify-center items-center text-black spaceplz">
+	<button on:click={backBlock} class="w-[100px] h-[50px] text-2xl bg-yellow-200 rounded-md">
 		Back
 	</button>
-	<button on:click={goToDance} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md">
+	<button on:click={goToDance} class="w-[100px] h-[50px] m-[5px] text-2xl bg-yellow-200 rounded-md">
 		Play
 	</button>
-	<button on:click={nextBlock} class="w-[200px] h-[100px] text-2xl bg-yellow-200 rounded-md">
+	<button on:click={nextBlock} class="w-[100px] h-[50px] text-2xl bg-yellow-200 rounded-md">
 		Next
 	</button>
 </div>
 
 <style>
+	.spaceplz {
+		margin-top: 50px;
+	}
+
 	.blocks {
 		display: flex;
 	}
@@ -96,8 +100,8 @@
 
 	.player {
 		position: relative;
-		width: 200px;
-		height: 400px;
+		width: 300px;
+		height: 600px;
 		margin: 0 auto;
 	}
 
