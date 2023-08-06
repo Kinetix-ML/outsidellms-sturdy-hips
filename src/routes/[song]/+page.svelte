@@ -37,6 +37,7 @@
 		'Clap!'
 	];
 	let hintTimes = [0, 5000, 9500, 11500, 12500, 13500];
+	let videoLoaded = false;
 
 	// $: files && files.length > 0 && loadVideo(files[0]);
 	$: hRatio = innerHeight > 0 ? Math.round((innerHeight * 9) / 16) : 0;
@@ -91,6 +92,7 @@
 		console.log(url);
 		trainerSource.srcObject = null;
 		trainerSource.src = url;
+		videoLoaded = true;
 	};
 	const processFrame = async () => {
 		if (!processing) {
@@ -224,19 +226,19 @@
 					class="absolute top-0 z-20 flex h-screen w-full items-center justify-center overflow-hidden p-8"
 				>
 					<div
-						class="flex flex-col justify-center gap-2 rounded-lg bg-gray-800 bg-opacity-[95%] p-8 shadow-lg"
+						class="flex flex-col justify-center gap-3 rounded-lg bg-gray-800 bg-opacity-[95%] p-8 shadow-lg"
 					>
 						<!-- <p>{innerHeight} {innerWidth} {hRatio} {wRatio} {h} {w}</p> -->
 						{#if !countdown}
 							<!-- <input type="file" bind:files /> -->
+							<p class="text-2xl font-bold">Welcome to Sturdy Hips</p>
+							<p>Let's put your dancing skills to the test. Press start to begin the song!</p>
 							{#if scores.length > 0}
 								<p class="text-xl font-bold">{Math.round(score)}</p>
 							{/if}
 							<button
-								disabled={!(files && files.length > 0)}
-								class="m-auto rounded-lg {files && files.length > 0
-									? 'bg-rose-500'
-									: 'bg-gray-600'} px-4 py-2"
+								disabled={!videoLoaded}
+								class="m-auto rounded-lg {videoLoaded ? 'bg-rose-500' : 'bg-gray-600'} px-4 py-2"
 								on:click={() => (countdown = true)}
 								>{scores.length > 0 ? 'Play Again' : 'Start'}</button
 							>
