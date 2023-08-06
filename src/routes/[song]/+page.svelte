@@ -71,7 +71,7 @@
 		await loadTrainerData();
 		await startWebcam();
 	});
-	$: trainerSource && loadVideo('/demo.mov');
+	$: trainerSource && loadVideo('/demo.mp4');
 	$: startCountdown(countdown);
 	$: startGame(playing);
 	const startGame = async (p: boolean) => {
