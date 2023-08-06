@@ -161,10 +161,9 @@
 
 	.video {
 		position: absolute;
-		/* Adjust these values to position the video correctly on the iPhone image */
-		top: 10%;
-		left: 10%;
-		width: 80%;
-		height: 80%;
+		top: 8%;
+		left: 5%;
+		width: 90%;
+		height: 90%;
 	}
 </style>
