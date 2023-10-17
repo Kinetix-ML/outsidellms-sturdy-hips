@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 
 	let pipe: KMLPipeline;
+	let compare: KMLPipeline;
 	let videoSource: HTMLVideoElement;
 	let trainerSource: HTMLVideoElement;
 	let canvas: HTMLCanvasElement;
@@ -66,8 +67,10 @@
 
 	onMount(async () => {
 		let { KMLPipeline } = await import('kml-pipe-ts');
-		pipe = new KMLPipeline('Outside LLMs Runtime', 1, '79705c77-f57b-449d-b856-03138e8859a7');
+		pipe = new KMLPipeline('Sturdy Hips KP Generation', 1, '261e97fd-18b1-4a3c-8cc1-b94a421c11bf');
+		compare = new KMLPipeline('Sturdy Hips Compare', 1, '261e97fd-18b1-4a3c-8cc1-b94a421c11bf');
 		await pipe.initialize();
+		await compare.initialize();
 		await loadTrainerData();
 		await startWebcam();
 	});
@@ -106,6 +109,7 @@
 		videoSource.srcObject = stream;
 		await videoSource.play();
 		loading = false;
+		//videoSource.requestVideoFrameCallback(processFrame);
 	};
 	const loadVideo = async (url: string) => {
 		//let url = URL.createObjectURL(video);
@@ -117,26 +121,28 @@
 	const processFrame = async () => {
 		if (!processing) {
 			processing = true;
+			canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+			let outputs = await pipe.execute([videoSource, canvas]);
 			let time = Date.now();
 			console.log(time - startTime);
 			let frame = findCorrelatedFrame(time - startTime);
-			canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+			console.log(canvas.width);
 
 			if (frame) {
-				hintIdx =
-					hintTimes.length -
-					hintTimes
-						.slice()
-						.reverse()
-						.findIndex((t) => t < time - startTime) -
-					1;
-				console.log(hintIdx);
-				let outputs = await pipe.execute([videoSource, frame.data]);
-				console.log('similarity: ' + JSON.stringify(outputs[0].value));
-				if (outputs[0].value != DataType.NoDetections) {
-					drawKeyPoints(outputs[1].value, videoSource, canvas, outputs[0].value);
-					console.log(outputs[1].value.keypoints.map((kp) => kp.name));
-					scores.push(outputs[0].value);
+				// hintIdx =
+				// 	hintTimes.length -
+				// 	hintTimes
+				// 		.slice()
+				// 		.reverse()
+				// 		.findIndex((t) => t < time - startTime) -
+				// 	1;
+				//console.log(hintIdx);
+				let similarity = await compare.execute([outputs[0].value, frame.data]);
+				console.log('similarity: ' + JSON.stringify(similarity[0].value));
+				if (similarity[0].value != DataType.NoDetections) {
+					// drawKeyPoints(outputs[1].value, videoSource, canvas, outputs[0].value);
+					// console.log(outputs[1].value.keypoints.map((kp) => kp.name));
+					scores.push(similarity[0].value);
 					scores = scores;
 				}
 				let frameScore = (avgScores(scores[scores.length - 1]) - 0.7) / 0.3;
@@ -161,10 +167,12 @@
 	const loadTrainerData = async () => {
 		let response = await fetch('/data.json');
 		data = await response.json();
-		let start = data[0].time;
-		data = data.map((d, i) => ({ ...d, time: i * 1000 * (1 / (data.length / 18)) }));
+		data = data.frames;
+		hints = data.hints;
 	};
 	const findCorrelatedFrame = (time: number) => {
+		console.log('frame index: ' + Math.round((time / 1000) * 30));
+		return data[Math.round((time / 1000) * 30)];
 		for (let i = 0; i < data.length; i++) {
 			if (data[i].time > time) {
 				return data[i - 1];
@@ -178,8 +186,8 @@
 	};
 	const avgScores = (s: number[]) => s.reduce((prev, cur) => prev + cur) / s.length;
 	const drawKeyPoints = (frame: KPFrame, image: CVImage, canvas: Canvas, scores: number[]) => {
-		matchKps(frame);
-		let w =
+		//matchKps(frame);
+		/*let w =
 			'videoWidth' in image
 				? (image as HTMLVideoElement).videoWidth
 				: (image as HTMLImageElement).naturalWidth;
@@ -195,8 +203,8 @@
 			y: kp.y * scale - offsetY
 		}));
 		var ctx = canvas.getContext('2d');
-		let sc = scores.filter((kp, i) => i >= 5);
-		frame.keypoints
+		let sc = scores.filter((kp, i) => i >= 5);*/
+		/*frame.keypoints
 			.filter((kp, i) => i >= 5)
 			.forEach((kp, i) => {
 				ctx?.beginPath();
@@ -213,7 +221,7 @@
 
 				ctx?.fill();
 				ctx?.closePath();
-			});
+			});*/
 	};
 </script>
 
@@ -221,7 +229,7 @@
 
 <div class="flex h-screen w-screen items-center justify-center bg-black">
 	{#if w > 0 && h > 0}
-		<div class="relative h-screen w-[{w}px] bg-black">
+		<div class="relative h-screen w-full bg-black">
 			<div>
 				<img
 					src="https://images.radio.com/aiu-media/Outsidelands-3b97f4ed-8bff-4fe8-bf54-158587d42a7b.jpg?width=800"
@@ -235,10 +243,9 @@
 				<video
 					id="webcam"
 					autoplay
-					class={`absolute left-0 top-0 h-[${h}px] w-[${w}px] scale-x-[-1] rounded-lg
+					class={`absolute left-0 top-0 h-[${h}px] w-full scale-x-[-1] rounded-lg
 					object-cover shadow-lg`}
 					height={h}
-					width={w}
 					bind:this={videoSource}
 					style="height: {h}px;"
 				/>
@@ -278,7 +285,7 @@
 				<video
 					id="webcam2"
 					muted={false}
-					class={`z-2 absolute left-0 top-0 h-[${h}px] w-[${w}px] overflow-hidden rounded-lg opacity-50 shadow-lg`}
+					class={`z-2 absolute left-0 top-0 h-[${h}px] overflow-hidden shadow-lg`}
 					height={h}
 					width={w}
 					bind:this={trainerSource}
@@ -287,19 +294,17 @@
 			<div>
 				<canvas
 					id="canvas"
-					class="absolute left-0 top-0 z-10 h-[{h}px] w-[{Math.round(
-						(h * 640) / 480
-					)}px] translate-x-[-{Math.round(((h * 640) / 480 - w) / 2)}px]"
+					class="absolute left-0 top-0 z-10 h-[{h}px] w-full"
 					height={h}
-					width={Math.round((h * 640) / 480)}
+					width={innerWidth}
 					bind:this={canvas}
-					style="transform: translateX(-{Math.round(((h * 640) / 480 - w) / 2)}px) scaleX(-1)"
+					style="transform: scaleX(-1)"
 				/>
 			</div>
 			<div class="absolute left-0 top-0 w-full">
 				{#if playing}
 					<div class="flex flex-row justify-center p-4">
-						<p class="text-2xl font-bold">{hints[hintIdx]}</p>
+						<!-- <p class="text-2xl font-bold">{hints[hintIdx]}</p> -->
 					</div>
 				{/if}
 			</div>
