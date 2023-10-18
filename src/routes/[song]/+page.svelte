@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Renderer from '$lib/Renderer.svelte';
 	import type { KMLPipeline } from 'kml-pipe-ts';
 	import { DataType } from 'kml-pipe-ts/dist/base_structs';
 	import type { CVImage, Canvas, KPFrame } from 'kml-pipe-ts/dist/types';
@@ -227,6 +228,11 @@
 
 <svelte:window bind:innerHeight bind:innerWidth />
 
+{#if data.length > 0}
+	<div class="absolute">
+		<Renderer pose={data[300].data} />
+	</div>
+{/if}
 <div class="flex h-screen w-screen items-center justify-center bg-black">
 	{#if w > 0 && h > 0}
 		<div class="relative h-screen w-full bg-black">
