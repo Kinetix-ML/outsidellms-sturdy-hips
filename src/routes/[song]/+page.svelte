@@ -6,10 +6,13 @@
 	import { onMount } from 'svelte';
 
 	let pipe: KMLPipeline;
+	let pose3D: KPFrame;
+	let pose2D: KPFrame;
 	let compare: KMLPipeline;
 	let videoSource: HTMLVideoElement;
 	let trainerSource: HTMLVideoElement;
 	let canvas: HTMLCanvasElement;
+	let hintCanvas: HTMLCanvasElement;
 	let processing = false;
 	let data: any[] = [];
 	let startTime = 0;
@@ -29,36 +32,8 @@
 	let curScore: number = 0;
 	let multiplier: number = 1;
 	let score: number = 0;
-	let hintIdx = 0;
-	let hints = [
-		'Pump Up the Music',
-		'Start With the Hips',
-		'A little Wiggle',
-		'Clap!',
-		'A little Wiggle',
-		'Clap!'
-	];
-	let hintTimes = [0, 5000, 9500, 11500, 12500, 13500];
+	let hints = [];
 	let videoLoaded = false;
-	let kps = [
-		'nose',
-		'left_eye',
-		'right_eye',
-		'left_ear',
-		'right_ear',
-		'left_shoulder',
-		'right_shoulder',
-		'left_elbow',
-		'right_elbow',
-		'left_wrist',
-		'right_wrist',
-		'left_hip',
-		'right_hip',
-		'left_knee',
-		'right_knee',
-		'left_ankle',
-		'right_ankle'
-	];
 
 	// $: files && files.length > 0 && loadVideo(files[0]);
 	$: hRatio = innerHeight > 0 ? Math.round((innerHeight * 9) / 16) : 0;
@@ -118,16 +93,19 @@
 		trainerSource.srcObject = null;
 		trainerSource.src = url;
 		videoLoaded = true;
+		videoSource.requestVideoFrameCallback(processFrame);
 	};
 	const processFrame = async () => {
 		if (!processing) {
 			processing = true;
 			canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
 			let outputs = await pipe.execute([videoSource, canvas]);
+			pose3D = outputs[0].value;
+			pose2D = outputs[1].value;
 			let time = Date.now();
-			console.log(time - startTime);
+			//console.log(time - startTime);
 			let frame = findCorrelatedFrame(time - startTime);
-			console.log(canvas.width);
+			//console.log(canvas.width);
 
 			if (frame) {
 				// hintIdx =
@@ -139,7 +117,7 @@
 				// 	1;
 				//console.log(hintIdx);
 				let similarity = await compare.execute([outputs[0].value, frame.data]);
-				console.log('similarity: ' + JSON.stringify(similarity[0].value));
+				//console.log('similarity: ' + JSON.stringify(similarity[0].value));
 				if (similarity[0].value != DataType.NoDetections) {
 					// drawKeyPoints(outputs[1].value, videoSource, canvas, outputs[0].value);
 					// console.log(outputs[1].value.keypoints.map((kp) => kp.name));
@@ -180,121 +158,94 @@
 			}
 		}
 	};
-	const matchKps = (frame: KPFrame) => {
-		let newKeypoints = kps.map((kp, i) => frame.keypoints.find((nkp) => nkp.name === kp));
-		// @ts-ignore
-		frame.keypoints = newKeypoints;
-	};
 	const avgScores = (s: number[]) => s.reduce((prev, cur) => prev + cur) / s.length;
-	const drawKeyPoints = (frame: KPFrame, image: CVImage, canvas: Canvas, scores: number[]) => {
-		//matchKps(frame);
-		/*let w =
-			'videoWidth' in image
-				? (image as HTMLVideoElement).videoWidth
-				: (image as HTMLImageElement).naturalWidth;
-		let h =
-			'videoHeight' in image
-				? (image as HTMLVideoElement).videoHeight
-				: (image as HTMLImageElement).naturalHeight;
-		let scale = canvas.width / w;
-		let offsetY = (h * scale - canvas.height) / 2;
-		frame.keypoints = frame.keypoints.map((kp) => ({
-			...kp,
-			x: kp.x * scale,
-			y: kp.y * scale - offsetY
-		}));
-		var ctx = canvas.getContext('2d');
-		let sc = scores.filter((kp, i) => i >= 5);*/
-		/*frame.keypoints
-			.filter((kp, i) => i >= 5)
-			.forEach((kp, i) => {
-				ctx?.beginPath();
-				ctx?.moveTo(kp.x, kp.y);
-				if (sc[i] > 0.6) {
-					ctx!.fillStyle = sc[i] > 0.8 ? 'white' : sc[i] > 0.6 ? 'yellow' : 'red';
-					ctx?.arc(kp.x, kp.y, canvas.width * (sc[i] < 0.8 ? 0.007 : 0.005), 0, 2 * Math.PI, false);
-				} else {
-					ctx!.font = '30px Arial bold';
-					ctx!.textBaseline = 'middle';
-					ctx!.fillText('❌', kp.x, kp.y);
-					ctx!.textAlign = 'center';
-				}
-
-				ctx?.fill();
-				ctx?.closePath();
-			});*/
-	};
 </script>
 
 <svelte:window bind:innerHeight bind:innerWidth />
 
-{#if data.length > 0}
+{#if data.length > 0 && hintCanvas}
 	<div class="absolute">
-		<Renderer pose={data[300].data} />
+		<Renderer
+			{pose3D}
+			{pose2D}
+			videoElement={videoSource}
+			guideCanvas={canvas}
+			canvas={hintCanvas}
+			width={400}
+			height={h - 75}
+		/>
 	</div>
 {/if}
 <div class="flex h-screen w-screen items-center justify-center bg-black">
 	{#if w > 0 && h > 0}
 		<div class="relative h-screen w-full bg-black">
-			<div>
-				<img
-					src="https://images.radio.com/aiu-media/Outsidelands-3b97f4ed-8bff-4fe8-bf54-158587d42a7b.jpg?width=800"
-					class={`h-[${h}px] w-[${w}px] object-cover`}
-					width={w}
-					height={h}
-					style="height: {h}px;"
-				/>
-			</div>
+			<div />
 			<div class="">
 				<video
 					id="webcam"
 					autoplay
-					class={`absolute left-0 top-0 h-[${h}px] w-full scale-x-[-1] rounded-lg
-					object-cover shadow-lg`}
+					class={`absolute left-0 top-0 h-[${h}px] w-full scale-x-[-1]
+					object-cover`}
 					height={h}
 					bind:this={videoSource}
 					style="height: {h}px;"
 				/>
 			</div>
-			{#if !playing}
-				<div
-					class="absolute top-0 z-20 flex h-screen w-full items-center justify-center overflow-hidden p-8"
-				>
-					<div
-						class="flex flex-col justify-center gap-3 rounded-lg bg-gray-800 bg-opacity-[95%] p-8 shadow-lg"
-					>
-						<!-- <p>{innerHeight} {innerWidth} {hRatio} {wRatio} {h} {w}</p> -->
-						{#if !countdown}
-							<!-- <input type="file" bind:files /> -->
-							<p class="text-2xl font-bold">Welcome to Sturdy Hips</p>
-							<p>Let's put your dancing skills to the test. Press start to begin the song!</p>
-							{#if scores.length > 0}
-								<div class="flex flex-row items-baseline gap-2">
-									<p>You scored</p>
-									<p class="text-xl font-bold">{Math.round(score)}</p>
-								</div>
-							{/if}
-							<button
-								disabled={!videoLoaded}
-								class="m-auto rounded-lg {videoLoaded ? 'bg-rose-500' : 'bg-gray-600'} px-4 py-2"
-								on:click={() => (countdown = true)}
-								>{scores.length > 0 ? 'Play Again' : 'Start'}</button
+
+			<div class="absolute left-[32px] top-0 flex flex-col justify-center items-center h-screen">
+				<div class=" shadow-lg rounded-xl max-h-[750px] h-[{h - 75}px] overflow-hidden">
+					{#if !playing}
+						<div
+							class="absolute top-0 z-20 flex h-full w-full items-center justify-center overflow-hidden"
+						>
+							<div
+								class="flex flex-col justify-center rounded-xl gap-3 bg-black bg-opacity-[70%] p-8 shadow-lg h-[{h -
+									75}px] w-full"
+								style="height: {h - 75}px; max-height: 750px;"
 							>
-							<!-- <p>{innerHeight} {innerWidth} {hRatio} {wRatio}</p> -->
-						{:else}
-							<p class="text-2xl">{time}</p>
-						{/if}
-					</div>
+								<div class="flex flex-col gap-3 justify-center items-center w-full">
+									{#if !countdown}
+										<img src="/sign2.png" class="w-[200px]" />
+										<p class="text-2xl font-bold w-full">Welcome to Sturdy Hips</p>
+										<p>Let's put your dancing skills to the test. Press start to begin the song!</p>
+										{#if scores.length > 0}
+											<div class="flex flex-row items-baseline gap-2">
+												<p>You scored</p>
+												<p class="text-xl font-bold">{Math.round(score)}</p>
+											</div>
+										{/if}
+										<button
+											disabled={!videoLoaded}
+											class="m-auto rounded-lg {videoLoaded
+												? 'bg-[#F25CCA]'
+												: 'bg-gray-600'} px-4 py-2 text-xl"
+											on:click={() => (countdown = true)}
+											>{scores.length > 0 ? 'Play Again' : 'Start'}</button
+										>
+									{:else}
+										<p class="text-4xl font-bold">{time}</p>
+									{/if}
+								</div>
+							</div>
+						</div>
+					{/if}
+					<video
+						id="webcam2"
+						muted={false}
+						class={`z-2  overflow-hidden`}
+						style="max-height: 750px; height: {h - 75}px"
+						bind:this={trainerSource}
+					/>
 				</div>
-			{/if}
-			<div>
-				<video
-					id="webcam2"
-					muted={false}
-					class={`z-2 absolute left-0 top-0 h-[${h}px] overflow-hidden shadow-lg`}
+			</div>
+			<div class="absolute right-[432px] top-0 flex flex-col justify-center h-screen">
+				<canvas
+					id="hintCanvas"
+					class="absolute z-10 w-[400px]"
+					style="height: {h - 75}px"
 					height={h}
-					width={w}
-					bind:this={trainerSource}
+					width={400}
+					bind:this={hintCanvas}
 				/>
 			</div>
 			<div>
@@ -314,12 +265,24 @@
 					</div>
 				{/if}
 			</div>
-			<div class="absolute bottom-0 left-0 w-full">
-				<div class="flex flex-row justify-between p-4">
-					<p class="text-2xl font-bold">{Math.round(score)}</p>
-					<p class="text-2xl font-bold">{multiplier}x</p>
+			<!-- <div class="absolute top-32 left-0 w-full justify-center flex flex-col items-center">
+				<div class="flex flex-row p-4 gap-4 items-center">
+					<img src="/sign.png" class="w-[160px]" />
 				</div>
-				<div class="z-30 h-4 w-full overflow-hidden bg-gray-600">
+			</div> -->
+			<div class="absolute bottom-0 left-0 w-full justify-center flex flex-col items-center">
+				<div class="flex flex-row p-8 gap-4 items-center w-[35%] justify-between">
+					<div class="flex flex-row gap-4 items-baseline">
+						<p class="text-5xl font-bold shadow-sm">{Math.round(score)}</p>
+						<p class="text-4xl font-bold">{multiplier}x</p>
+					</div>
+					<div class="flex flex-row gap-1">
+						<object data="/star_filled.svg" height="50" width="50" />
+						<object data="/star_filled.svg" height="50" width="50" />
+						<object data="/star_unfilled.svg" height="50" width="50" />
+					</div>
+				</div>
+				<div class="z-30 h-4 w-full overflow-hidden bg-black bg-opacity-50">
 					<div
 						class="h-full {goodFrameCount / 80 < 0.3
 							? 'bg-red-500'

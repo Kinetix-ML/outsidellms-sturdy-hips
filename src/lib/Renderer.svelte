@@ -6,29 +6,39 @@
 	import { onMount } from 'svelte';
 	import type { KPFrame } from 'kml-pipe-ts/dist/types';
 
-	export let pose: KPFrame;
+	export let pose3D: KPFrame;
+	export let pose2D: KPFrame;
+	export let videoElement: HTMLVideoElement;
+	export let guideCanvas: HTMLCanvasElement;
+	export let canvas: HTMLCanvasElement;
+	export let width: number;
+	export let height: number;
 
-	onMount(() => {
+	//Import Helper Functions from Kalidokit
+	let Kalidokit;
+
+	/* THREEJS WORLD SETUP */
+	let currentVrm;
+
+	onMount(async () => {
+		Kalidokit = await import('kalidokit');
 		// renderer
-		const renderer = new THREE.WebGLRenderer();
-		renderer.setSize(window.innerWidth, window.innerHeight);
+		const renderer = new THREE.WebGLRenderer({ alpha: true, canvas: canvas });
+		//console.log(' Render canvas: ' + canvas.id);
+		renderer.setSize(width, height);
 		renderer.setPixelRatio(window.devicePixelRatio);
-		document.body.appendChild(renderer.domElement);
+		//document.body.appendChild(renderer.domElement);
 
 		// camera
-		const camera = new THREE.PerspectiveCamera(
-			30.0,
-			window.innerWidth / window.innerHeight,
-			0.1,
-			20.0
-		);
-		camera.position.set(0.0, 1.0, 5.0);
+		const orbitCamera = new THREE.PerspectiveCamera(35, 0.5, 0.1, 1000);
+		orbitCamera.position.set(0.0, 1, -4);
+		orbitCamera.lookAt(new THREE.Vector3(0.0, 1, 0.0));
 
-		// camera controls
-		const controls = new OrbitControls(camera, renderer.domElement);
-		controls.screenSpacePanning = true;
-		controls.target.set(0.0, 1.0, 0.0);
-		controls.update();
+		// controls
+		// const orbitControls = new OrbitControls(orbitCamera, renderer.domElement);
+		// orbitControls.screenSpacePanning = true;
+		// orbitControls.target.set(0.0, 1, 0.0);
+		// orbitControls.update();
 
 		// scene
 		const scene = new THREE.Scene();
@@ -38,8 +48,24 @@
 		light.position.set(1.0, 1.0, 1.0).normalize();
 		scene.add(light);
 
+		// Main Render Loop
+		const clock = new THREE.Clock();
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			if (currentVrm) {
+				// Update model to render physics
+				currentVrm.update(clock.getDelta());
+				onResults(pose3D);
+			}
+			renderer.render(scene, orbitCamera);
+		}
+		animate();
+
+		/* VRM CHARACTER SETUP */
 		// gltf and vrm
-		let currentVrm = undefined;
+		//let currentVrm = undefined;
 		const loader = new GLTFLoader();
 		loader.crossOrigin = 'anonymous';
 
@@ -48,7 +74,7 @@
 		});
 
 		loader.load(
-			'/VRM1_Constraint_Twist_Sample.vrm',
+			'https://cdn.glitch.com/29e07830-2317-4b15-a044-135e73c7f840%2FAshtra.vrm?v=1630342336981',
 
 			(gltf) => {
 				const vrm = gltf.userData.vrm;
@@ -72,245 +98,173 @@
 
 			(error) => console.error(error)
 		);
-
-		// helpers
-		// const gridHelper = new THREE.GridHelper(10, 10);
-		// scene.add(gridHelper);
-
-		const axesHelper = new THREE.AxesHelper(5);
-		scene.add(axesHelper);
-
-		// animate
-		const clock = new THREE.Clock();
-
-		function animate() {
-			requestAnimationFrame(animate);
-
-			const deltaTime = clock.getDelta();
-
-			if (currentVrm && pose) {
-				// tweak bones
-				// const s = 0.25 * Math.PI * Math.sin(Math.PI * clock.elapsedTime);
-				// currentVrm.humanoid.getNormalizedBoneNode('neck').rotation.y = s;
-				// currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm').rotation.z = s;
-				// currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm').rotation.x = s;
-				console.log(currentVrm.humanoid._normalizedHumanBones);
-				let leftUpperArmRotation = computeEulerAnglesBetweenPoints(
-					pose.keypoints[12],
-					pose.keypoints[11],
-					pose.keypoints[13]
-				); //computeEulerAngles(pose.keypoints[13], pose.keypoints[11]);
-				currentVrm.humanoid
-					.getNormalizedBoneNode('leftUpperArm')
-					.rotation.set(0, leftUpperArmRotation.y, leftUpperArmRotation.z);
-				console.log('Left:' + JSON.stringify(leftUpperArmRotation));
-				let rightUpperArmRotation = computeEulerAnglesBetweenPoints(
-					pose.keypoints[11],
-					pose.keypoints[12],
-					pose.keypoints[14]
-				); //computeEulerAngles(pose.keypoints[12], pose.keypoints[10]);
-				currentVrm.humanoid
-					.getNormalizedBoneNode('rightUpperArm')
-					.rotation.set(0, rightUpperArmRotation.y, rightUpperArmRotation.z);
-				console.log('Right:' + JSON.stringify(rightUpperArmRotation));
-
-				let leftElbowRotation = computeEulerAnglesBetweenPoints(
-					pose.keypoints[11],
-					pose.keypoints[13],
-					pose.keypoints[15]
-				); //computeEulerAngles(pose.keypoints[13], pose.keypoints[11]);
-				currentVrm.humanoid
-					.getNormalizedBoneNode('leftLowerArm')
-					.rotation.set(0, leftElbowRotation.y, leftElbowRotation.z);
-				console.log('Left:' + JSON.stringify(leftElbowRotation));
-				let rightElbowRotation = computeEulerAnglesBetweenPoints(
-					pose.keypoints[12],
-					pose.keypoints[14],
-					pose.keypoints[16]
-				); //computeEulerAngles(pose.keypoints[12], pose.keypoints[10]);
-				currentVrm.humanoid
-					.getNormalizedBoneNode('rightLowerArm')
-					.rotation.set(0, rightElbowRotation.y, rightElbowRotation.z);
-				console.log('Right Elbow:' + JSON.stringify(rightElbowRotation));
-
-				// update vrm
-				currentVrm.update(deltaTime);
-			}
-
-			renderer.render(scene, camera);
-		}
-
-		animate();
 	});
 
-	function computeEulerAngles(P1, P2) {
-		// Translate points so that P2 is at the origin
-		let dx = P1.x - P2.x;
-		let dy = P1.y - P2.y;
-		let dz = P1.z - P2.z;
-
-		// Calculate the distances
-		let r = Math.sqrt(dx * dx + dy * dy + dz * dz);
-		let dxy = Math.sqrt(dx * dx + dy * dy);
-
-		// Calculate Euler angles
-		let roll = Math.atan2(dy, dx); // Rotation around Z-axis
-		let pitch = Math.atan2(dz, dxy); // Rotation around Y-axis
-		let yaw = Math.atan2(dy, dz); // Rotation around X-axis
-
-		return {
-			x: roll,
-			y: pitch,
-			z: yaw
-		};
-	}
-
-	function computeEulerAnglesBetweenPoints(A, B, C) {
-		// Calculate vectors AB and BC
-		let AB = { x: B.x - A.x, y: B.y - A.y, z: B.z - A.z };
-		let BC = { x: C.x - B.x, y: C.y - B.y, z: C.z - B.z };
-
-		// Normalize the vectors
-		let magAB = Math.sqrt(AB.x * AB.x + AB.y * AB.y + AB.z * AB.z);
-		let magBC = Math.sqrt(BC.x * BC.x + BC.y * BC.y + BC.z * BC.z);
-		AB = { x: AB.x / magAB, y: AB.y / magAB, z: AB.z / magAB };
-		BC = { x: BC.x / magBC, y: BC.y / magBC, z: BC.z / magBC };
-
-		// Compute the cross product of AB and BC
-		let cross = {
-			x: AB.y * BC.z - AB.z * BC.y,
-			y: AB.z * BC.x - AB.x * BC.z,
-			z: AB.x * BC.y - AB.y * BC.x
-		};
-
-		// Compute the dot product of AB and BC
-		let dot = AB.x * BC.x + AB.y * BC.y + AB.z * BC.z;
-
-		// Calculate the quaternion
-		let w = Math.sqrt(
-			(magAB + dot) * (magAB + dot) + cross.x * cross.x + cross.y * cross.y + cross.z * cross.z
-		);
-		let q = { w: w, x: cross.x, y: cross.y, z: cross.z };
-
-		// Normalize the quaternion
-		let magQ = Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
-		q = { w: q.w / magQ, x: q.x / magQ, y: q.y / magQ, z: q.z / magQ };
-
-		// Convert the quaternion to Euler angles
-		let roll = Math.atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y));
-		let pitch = Math.asin(2 * (q.w * q.y - q.z * q.x));
-		let yaw = Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
-
-		return {
-			x: roll,
-			y: pitch,
-			z: yaw
-		};
-	}
-
-	function poseAngles(joint) {
-		if (this.body_pose.length == 0) return;
-		const pose_left_shoulder = new THREE.Vector3(
-			this.body_pose[11].slice(0, 3)[0],
-			-this.body_pose[11].slice(0, 3)[1],
-			-this.body_pose[11].slice(0, 3)[2]
-		);
-		const pose_right_shoulder = new THREE.Vector3(
-			this.body_pose[12].slice(0, 3)[0],
-			-this.body_pose[12].slice(0, 3)[1],
-			-this.body_pose[12].slice(0, 3)[2]
-		);
-		const pose_left_elbow = new THREE.Vector3(
-			this.body_pose[13].slice(0, 3)[0],
-			-this.body_pose[13].slice(0, 3)[1],
-			-this.body_pose[13].slice(0, 3)[2]
-		);
-		const pose_right_elbow = new THREE.Vector3(
-			this.body_pose[14].slice(0, 3)[0],
-			-this.body_pose[14].slice(0, 3)[1],
-			-this.body_pose[14].slice(0, 3)[2]
-		);
-		const pose_left_hand = new THREE.Vector3(
-			this.body_pose[15].slice(0, 3)[0],
-			-this.body_pose[15].slice(0, 3)[1],
-			-this.body_pose[15].slice(0, 3)[2]
-		);
-		const pose_right_hand = new THREE.Vector3(
-			this.body_pose[16].slice(0, 3)[0],
-			-this.body_pose[16].slice(0, 3)[1],
-			-this.body_pose[16].slice(0, 3)[2]
-		);
-		const pose_left_hand_thumb_4 = new THREE.Vector3(
-			this.body_pose[21].slice(0, 3)[0],
-			-this.body_pose[21].slice(0, 3)[1],
-			-this.body_pose[21].slice(0, 3)[2]
-		);
-		const pose_right_hand_thumb_4 = new THREE.Vector3(
-			this.body_pose[22].slice(0, 3)[0],
-			-this.body_pose[22].slice(0, 3)[1],
-			-this.body_pose[22].slice(0, 3)[2]
-		);
-		const pose_left_hip = new THREE.Vector3(
-			this.body_pose[23].slice(0, 3)[0],
-			-this.body_pose[23].slice(0, 3)[1],
-			-this.body_pose[23].slice(0, 3)[2]
-		);
-		const pose_right_hip = new THREE.Vector3(
-			this.body_pose[24].slice(0, 3)[0],
-			-this.body_pose[24].slice(0, 3)[1],
-			-this.body_pose[24].slice(0, 3)[2]
-		);
-
-		const pose_hips = new THREE.Vector3()
-			.copy(pose_left_hip)
-			.add(pose_right_hip)
-			.multiplyScalar(0.5);
-		const pose_spine_2 = new THREE.Vector3()
-			.copy(pose_right_shoulder)
-			.add(pose_left_shoulder)
-			.multiplyScalar(0.5); //.multiplyScalar(0.728);
-
-		var point_parent;
-		var point_articulation;
-		var point_child;
-		if (joint == this.neck) {
-			var point_parent = pose_hips;
-			var point_articulation = pose_spine_2;
-			var point_arm = pose_right_elbow;
-
-			const vec_parent = new THREE.Vector3()
-				.subVectors(point_articulation, point_parent)
-				.multiplyScalar(0.375);
-			const vec_bone = new THREE.Vector3().subVectors(point_arm, point_articulation);
-
-			setJointAnglesFromVects(joint, vec_bone, vec_parent);
-		} else if (joint == this.right_arm) {
-			point_parent = pose_spine_2;
-			point_articulation = pose_right_shoulder;
-			point_child = pose_right_elbow;
-		} else if (joint == this.left_arm) {
-			point_parent = pose_spine_2;
-			point_articulation = pose_left_shoulder;
-			point_child = pose_left_elbow;
-		} else if (joint == this.right_fore_arm) {
-			point_parent = pose_right_shoulder;
-			point_articulation = pose_right_elbow;
-			point_child = pose_right_hand;
-		} else if (joint == this.left_fore_arm) {
-			point_parent = pose_left_shoulder;
-			point_articulation = pose_left_elbow;
-			point_child = pose_left_hand;
-		} else if (joint == this.right_hand) {
-			point_parent = pose_right_elbow;
-			point_articulation = pose_right_hand;
-			point_child = pose_right_hand_thumb_4;
-		} else if (joint == this.left_hand) {
-			point_parent = pose_left_elbow;
-			point_articulation = pose_left_hand;
-			point_child = pose_left_hand_thumb_4;
+	// Animate Rotation Helper function
+	const rigRotation = (name, rotation = { x: 0, y: 0, z: 0 }, dampener = 1, lerpAmount = 0.3) => {
+		if (!currentVrm) {
+			return;
 		}
-		const vec_parent = new THREE.Vector3().subVectors(point_articulation, point_parent);
-		const vec_bone = new THREE.Vector3().subVectors(point_child, point_articulation);
-		setJointAnglesFromVects(joint, vec_parent, vec_bone);
-	}
+		//const Part = currentVrm.humanoid.getBoneNode(THREE.VRMSchema.HumanoidBoneName[name]);
+		const Part = currentVrm.humanoid.getRawBoneNode(
+			name.substring(0, 1).toLowerCase() + name.substring(1)
+		);
+		if (!Part) {
+			return;
+		}
+
+		console.log('Rotation: ' + name + ' ' + rotation.x + ' ' + rotation.y + ' ' + rotation.z);
+
+		let euler = new THREE.Euler(
+			rotation.x * dampener,
+			rotation.y * dampener,
+			rotation.z * dampener
+		);
+		let quaternion = new THREE.Quaternion().setFromEuler(euler);
+		Part.quaternion.slerp(quaternion, lerpAmount); // interpolate
+
+		//console.log('Rigged: ', name);
+	};
+
+	// Animate Position Helper Function
+	const rigPosition = (name, position = { x: 0, y: 0, z: 0 }, dampener = 1, lerpAmount = 0.3) => {
+		if (!currentVrm) {
+			return;
+		}
+		//const Part = currentVrm.humanoid.getBoneNode(THREE.VRMSchema.HumanoidBoneName[name]);
+		const Part = currentVrm.humanoid.getRawBoneNode(
+			name.substring(0, 1).toLowerCase() + name.substring(1)
+		);
+		if (!Part) {
+			return;
+		}
+		let vector = new THREE.Vector3(
+			position.x * dampener,
+			position.y * dampener,
+			position.z * dampener
+		);
+		Part.position.lerp(vector, lerpAmount); // interpolate
+	};
+
+	/* VRM Character Animator */
+	const animateVRM = (vrm, results) => {
+		if (!vrm || !pose3D || !pose2D || !pose3D.keypoints || !pose2D.keypoints) {
+			return;
+		}
+		// Take the results from `Holistic` and animate character based on its Face, Pose, and Hand Keypoints.
+		let riggedPose, riggedLeftHand, riggedRightHand, riggedFace;
+
+		// const faceLandmarks = results.faceLandmarks;
+		// Pose 3D Landmarks are with respect to Hip distance in meters
+		const pose3DLandmarks = pose3D.keypoints.map((kp) => ({
+			...kp,
+			y: -kp.y,
+			visibility: kp.score
+		}));
+		// Pose 2D landmarks are with respect to videoWidth and videoHeight
+		const pose2DLandmarks = pose2D.keypoints.map((kp) => ({
+			...kp,
+			y: kp.y / videoElement.videoHeight,
+			x: kp.x / videoElement.videoWidth,
+			visibility: kp.score
+		}));
+		//const pose2DLandmarks = pose2D.keypoints;
+		console.log(videoElement.videoHeight);
+		console.log('Pose 2D Landmarks: ' + JSON.stringify(pose2DLandmarks));
+		// Be careful, hand landmarks may be reversed
+		// const leftHandLandmarks = results.rightHandLandmarks;
+		// const rightHandLandmarks = results.leftHandLandmarks;
+
+		// Animate Pose
+		if (pose2DLandmarks && pose3DLandmarks) {
+			riggedPose = Kalidokit.Pose.solve(pose3DLandmarks, pose2DLandmarks, {
+				runtime: 'mediapipe',
+				video: videoElement
+			});
+			//console.log(riggedPose);
+			rigRotation('Hips', riggedPose.Hips.rotation, 0.7);
+			rigPosition(
+				'Hips',
+				{
+					x: -riggedPose.Hips.position.x, // Reverse direction
+					y: riggedPose.Hips.position.y + 1, // Add a bit of height
+					z: -riggedPose.Hips.position.z // Reverse direction
+				},
+				1,
+				0.07
+			);
+
+			rigRotation('Chest', riggedPose.Spine, 0.25, 0.3);
+			rigRotation('Spine', riggedPose.Spine, 0.45, 0.3);
+
+			rigRotation('RightUpperArm', riggedPose.RightUpperArm, 1, 0.3);
+			rigRotation('RightLowerArm', riggedPose.RightLowerArm, 1, 0.3);
+			rigRotation('LeftUpperArm', riggedPose.LeftUpperArm, 1, 0.3);
+			rigRotation('LeftLowerArm', riggedPose.LeftLowerArm, 1, 0.3);
+
+			rigRotation('LeftUpperLeg', riggedPose.LeftUpperLeg, 1, 0.3);
+			rigRotation('LeftLowerLeg', riggedPose.LeftLowerLeg, 1, 0.3);
+			rigRotation('RightUpperLeg', riggedPose.RightUpperLeg, 1, 0.3);
+			rigRotation('RightLowerLeg', riggedPose.RightLowerLeg, 1, 0.3);
+		}
+
+		// // Animate Hands
+		// if (leftHandLandmarks) {
+		// 	riggedLeftHand = Kalidokit.Hand.solve(leftHandLandmarks, 'Left');
+		// 	rigRotation('LeftHand', {
+		// 		// Combine pose rotation Z and hand rotation X Y
+		// 		z: riggedPose.LeftHand.z,
+		// 		y: riggedLeftHand.LeftWrist.y,
+		// 		x: riggedLeftHand.LeftWrist.x
+		// 	});
+		// 	rigRotation('LeftRingProximal', riggedLeftHand.LeftRingProximal);
+		// 	rigRotation('LeftRingIntermediate', riggedLeftHand.LeftRingIntermediate);
+		// 	rigRotation('LeftRingDistal', riggedLeftHand.LeftRingDistal);
+		// 	rigRotation('LeftIndexProximal', riggedLeftHand.LeftIndexProximal);
+		// 	rigRotation('LeftIndexIntermediate', riggedLeftHand.LeftIndexIntermediate);
+		// 	rigRotation('LeftIndexDistal', riggedLeftHand.LeftIndexDistal);
+		// 	rigRotation('LeftMiddleProximal', riggedLeftHand.LeftMiddleProximal);
+		// 	rigRotation('LeftMiddleIntermediate', riggedLeftHand.LeftMiddleIntermediate);
+		// 	rigRotation('LeftMiddleDistal', riggedLeftHand.LeftMiddleDistal);
+		// 	rigRotation('LeftThumbProximal', riggedLeftHand.LeftThumbProximal);
+		// 	rigRotation('LeftThumbIntermediate', riggedLeftHand.LeftThumbIntermediate);
+		// 	rigRotation('LeftThumbDistal', riggedLeftHand.LeftThumbDistal);
+		// 	rigRotation('LeftLittleProximal', riggedLeftHand.LeftLittleProximal);
+		// 	rigRotation('LeftLittleIntermediate', riggedLeftHand.LeftLittleIntermediate);
+		// 	rigRotation('LeftLittleDistal', riggedLeftHand.LeftLittleDistal);
+		// }
+		// if (rightHandLandmarks) {
+		// 	riggedRightHand = Kalidokit.Hand.solve(rightHandLandmarks, 'Right');
+		// 	rigRotation('RightHand', {
+		// 		// Combine Z axis from pose hand and X/Y axis from hand wrist rotation
+		// 		z: riggedPose.RightHand.z,
+		// 		y: riggedRightHand.RightWrist.y,
+		// 		x: riggedRightHand.RightWrist.x
+		// 	});
+		// 	rigRotation('RightRingProximal', riggedRightHand.RightRingProximal);
+		// 	rigRotation('RightRingIntermediate', riggedRightHand.RightRingIntermediate);
+		// 	rigRotation('RightRingDistal', riggedRightHand.RightRingDistal);
+		// 	rigRotation('RightIndexProximal', riggedRightHand.RightIndexProximal);
+		// 	rigRotation('RightIndexIntermediate', riggedRightHand.RightIndexIntermediate);
+		// 	rigRotation('RightIndexDistal', riggedRightHand.RightIndexDistal);
+		// 	rigRotation('RightMiddleProximal', riggedRightHand.RightMiddleProximal);
+		// 	rigRotation('RightMiddleIntermediate', riggedRightHand.RightMiddleIntermediate);
+		// 	rigRotation('RightMiddleDistal', riggedRightHand.RightMiddleDistal);
+		// 	rigRotation('RightThumbProximal', riggedRightHand.RightThumbProximal);
+		// 	rigRotation('RightThumbIntermediate', riggedRightHand.RightThumbIntermediate);
+		// 	rigRotation('RightThumbDistal', riggedRightHand.RightThumbDistal);
+		// 	rigRotation('RightLittleProximal', riggedRightHand.RightLittleProximal);
+		// 	rigRotation('RightLittleIntermediate', riggedRightHand.RightLittleIntermediate);
+		// 	rigRotation('RightLittleDistal', riggedRightHand.RightLittleDistal);
+		// }
+	};
+
+	/* SETUP MEDIAPIPE HOLISTIC INSTANCE */
+
+	$: onResults(pose3D);
+	const onResults = (results) => {
+		// Draw landmark guides
+		// Animate model
+		animateVRM(currentVrm, results);
+	};
 </script>
