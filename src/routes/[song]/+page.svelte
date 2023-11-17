@@ -35,20 +35,20 @@
 	let curScore: number = 0;
 	let multiplier: number = 1;
 	let score: number = 0;
-	let hints = [];
+	let hints: number[] = [];
 	let videoLoaded = false;
 	let currentFrame = 0;
 	let outlineRender: OutlineRender;
 
 	let feedbackOptions = [
-		{ text: 'Perfect', color: 'green', score: 0.9 },
-		{ text: 'Super', color: 'green', score: 0.8 },
-		{ text: 'Good', color: 'yellow', score: 0.7 },
-		{ text: 'OK', color: 'yellow', score: 0.6 },
-		{ text: 'Bad', color: 'red', score: 0.5 },
-		{ text: 'Miss', color: 'red', score: 0.4 }
+		{ text: 'Perfect', color: '#39ff14', score: 0.9 },
+		{ text: 'Super', color: '#39ff14', score: 0.8 },
+		{ text: 'Good', color: '#faed27', score: 0.7 },
+		{ text: 'OK', color: '#faed27', score: 0.6 },
+		{ text: 'Bad', color: '#fc1723', score: 0.5 },
+		{ text: 'Miss', color: '#fc1723', score: 0.4 }
 	];
-	let currentFeedback = null;
+	let currentFeedback = feedbackOptions[0];
 	let hintFeedback = [];
 
 	// $: files && files.length > 0 && loadVideo(files[0]);
@@ -161,6 +161,7 @@
 				// multiplier = Math.floor(goodFrameCount / 80) + 1;
 				// if (multiplier > 3) multiplier = 3;
 				// score += curScore * multiplier;
+				updateFeedback(currentFrame);
 			} else {
 				playing = false;
 			}
@@ -173,12 +174,16 @@
 		let trainerData = await response.json();
 		data = trainerData.frames;
 		hints = trainerData.hints;
-		//console.log(data.hints);
+		console.log(hints);
 	};
 	const updateFeedback = (frameIdx: number) => {
-		if (frameIdx > hint[feedbackOptions.length]) {
+		if (hintFeedback.length >= hints.length) return;
+		let nextHint = hints[hintFeedback.length];
+		if (frameIdx > nextHint) {
 			let avgScore = avgScoresSet[frameIdx];
-			hintFeedback.push(feedbackOptions.find((f) => avgScore > f.score));
+			let newFeedback = feedbackOptions.find((f) => avgScore > f.score);
+			hintFeedback.push(newFeedback);
+			currentFeedback = newFeedback;
 		}
 	};
 	const findCorrelatedFrame = (time: number) => {
@@ -308,7 +313,12 @@
 			</div> -->
 			<div class="absolute bottom-0 left-0 w-full justify-center flex flex-col items-center">
 				<div>
-					<p class="text-5xl font-bold [text-shadow:_0_1px_0_rgb([red-500]/_40%)]">Perfect</p>
+					{#if currentFeedback}<p
+							class="text-5xl font-bold"
+							style="text-shadow: 2px 2px 15px {currentFeedback.color}"
+						>
+							{currentFeedback.text}
+						</p>{/if}
 				</div>
 				<div class="flex flex-row p-8 gap-4 items-center w-[35%] justify-between">
 					<div class="flex flex-row gap-4 items-baseline">
