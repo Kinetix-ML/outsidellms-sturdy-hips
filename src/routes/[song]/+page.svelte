@@ -26,6 +26,7 @@
 	let wRatio = 0;
 	let playing = false;
 	let countdown = false;
+	0;
 	let h = 0;
 	let w = 0;
 	let time = 5;
@@ -66,6 +67,7 @@
 		await compare.initialize();
 		await loadTrainerData();
 		await startWebcam();
+		outlineRender.drawKeyPoints(data[hints[0]].kp2D);
 	});
 	$: trainerSource && loadVideo('/demo.mp4');
 	$: startCountdown(countdown);
@@ -123,7 +125,7 @@
 			//console.log(time - startTime);
 			let frame = findCorrelatedFrame(time - startTime);
 			try {
-				outlineRender.drawKeyPoints(data[hints.find((a) => a > currentFrame)].kp2D);
+				outlineRender.animateToPoints(data[hints.find((a) => a > currentFrame)].kp2D);
 			} catch (err) {
 				console.log(err);
 			}

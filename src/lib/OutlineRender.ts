@@ -9,14 +9,42 @@ let fillColor = 'rgba(255, 255, 255, 0.9)';
 export class OutlineRender {
 	canvas: Canvas;
 	image: CVImage;
+	currentFrame: KPFrame | null = null;
 
 	constructor(canvas: Canvas, image: CVImage) {
 		this.canvas = canvas;
 		this.image = image;
 	}
 
+	animateToPoints(f: KPFrame) {
+		if (this.currentFrame) {
+			let a = 1000;
+			let distances: { x: number; y: number; z: number }[] = this.currentFrame.keypoints.map(
+				(e, i) => ({
+					x: (f.keypoints[i].x - e.x) / a,
+					y: (f.keypoints[i].y - e.y) / a,
+					z: (f.keypoints[i].z! - e.z!) / a
+				})
+			);
+			let frame = Object.assign(this.currentFrame!);
+
+			for (let i = 0; i < a; i++) {
+				frame = {
+					...frame,
+					keypoints: frame.keypoints.map((e, i) => ({
+						x: e.x + distances[i].x,
+						y: e.y + distances[i].y,
+						z: e.z + distances[i].z
+					}))
+				};
+				this.drawKeyPoints(frame);
+			}
+		}
+	}
+
 	drawKeyPoints(f: KPFrame) {
 		console.log('drawing keypoints');
+		this.currentFrame = f;
 		let { w, h } = this.image.getDims();
 		let scale = this.canvas.width / w;
 		let offsetY = (h * scale - this.canvas.height) / 2;
